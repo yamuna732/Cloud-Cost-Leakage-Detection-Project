@@ -7,8 +7,9 @@ REGION = "ap-south-1"
 
 
 def assume_role(role_arn):
-    base_session = boto3.Session(profile_name="saas")
-    sts = base_session.client("sts")
+    # SaaS EC2 IAM role provides base credentials automatically
+    base_session = boto3.Session()
+    sts = base_session.client("sts", region_name=REGION)
 
     creds = sts.assume_role(
         RoleArn=role_arn,
@@ -41,10 +42,9 @@ def get_latest_object_date(s3_client, bucket_name):
     return latest_date
 
 
-# ✅ renamed + standardized
 def find_unused_s3():
     session = assume_role(ROLE_ARN)
-    s3 = session.client("s3")
+    s3 = session.client("s3", region_name=REGION)
 
     unused = []
     cutoff = datetime.now(timezone.utc) - timedelta(days=DAYS_THRESHOLD)
@@ -67,7 +67,7 @@ def find_unused_s3():
         if latest < cutoff:
             unused.append({
                 "Name": name,
-                "SizeGB": 0  # size not calculated in this logic
+                "SizeGB": 0
             })
 
     return unused
