@@ -8,6 +8,31 @@ CPU_THRESHOLD = 5
 CONNECTION_THRESHOLD = 1
 IOPS_THRESHOLD = 5
 
+# Customer role to assume
+ROLE_ARN = "arn:aws:iam::427684478761:role/CloudCostReadOnlyRole"
+
+
+def assume_role(role_arn):
+    """
+    Use SaaS EC2 IAM role to assume customer account role.
+    """
+    base_session = boto3.Session()
+    sts = base_session.client("sts", region_name=REGION)
+
+    creds = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName="RDSScan"
+    )["Credentials"]
+
+    session = boto3.Session(
+        aws_access_key_id=creds["AccessKeyId"],
+        aws_secret_access_key=creds["SecretAccessKey"],
+        aws_session_token=creds["SessionToken"],
+        region_name=REGION
+    )
+
+    return session
+
 
 def get_metric(cloudwatch, db_id, metric):
     end = datetime.now(timezone.utc)
@@ -31,8 +56,10 @@ def get_metric(cloudwatch, db_id, metric):
 
 
 def find_idle_rds():
-    rds = boto3.client("rds", region_name=REGION)
-    cloudwatch = boto3.client("cloudwatch", region_name=REGION)
+    session = assume_role(ROLE_ARN)
+
+    rds = session.client("rds", region_name=REGION)
+    cloudwatch = session.client("cloudwatch", region_name=REGION)
 
     idle = []
 
@@ -65,6 +92,7 @@ def find_idle_rds():
     return idle
 
 
+# test
 if __name__ == "__main__":
     result = find_idle_rds()
 
