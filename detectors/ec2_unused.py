@@ -6,10 +6,37 @@ NETWORK_THRESHOLD = 1000000
 STOPPED_DAYS = 7
 REGION = "ap-south-1"
 
+# Customer role to assume
+ROLE_ARN = "arn:aws:iam::427684478761:role/CloudCostReadOnlyRole"
+
+
+def assume_role(role_arn):
+    """
+    Use SaaS EC2 IAM role to assume customer account role.
+    """
+    base_session = boto3.Session()
+    sts = base_session.client("sts", region_name=REGION)
+
+    creds = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName="EC2Scan"
+    )["Credentials"]
+
+    session = boto3.Session(
+        aws_access_key_id=creds["AccessKeyId"],
+        aws_secret_access_key=creds["SecretAccessKey"],
+        aws_session_token=creds["SessionToken"],
+        region_name=REGION
+    )
+
+    return session
+
 
 def find_idle_ec2():
-    ec2 = boto3.client("ec2", region_name=REGION)
-    cw = boto3.client("cloudwatch", region_name=REGION)
+    session = assume_role(ROLE_ARN)
+
+    ec2 = session.client("ec2", region_name=REGION)
+    cw = session.client("cloudwatch", region_name=REGION)
 
     idle_instances = []
 
@@ -86,6 +113,7 @@ def find_idle_ec2():
     return idle_instances
 
 
+# test
 if __name__ == "__main__":
     result = find_idle_ec2()
 
