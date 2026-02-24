@@ -5,14 +5,16 @@ REGION = "ap-south-1"
 
 
 def assume_role(role_arn):
-    base_session = boto3.Session(profile_name="saas")
-    sts = base_session.client("sts")
+    # SaaS EC2 IAM role provides base credentials automatically
+    base_session = boto3.Session()
+    sts = base_session.client("sts", region_name=REGION)
 
     creds = sts.assume_role(
         RoleArn=role_arn,
         RoleSessionName="EKSScan"
     )["Credentials"]
 
+    # Session for customer account
     session = boto3.Session(
         aws_access_key_id=creds["AccessKeyId"],
         aws_secret_access_key=creds["SecretAccessKey"],
@@ -26,10 +28,9 @@ def assume_role(role_arn):
 def find_overprovisioned_k8s():
     """
     Detect EKS clusters that exist (potential cost).
-    Later can extend to pod-level overprovisioning.
     """
     session = assume_role(ROLE_ARN)
-    eks = session.client("eks")
+    eks = session.client("eks", region_name=REGION)
 
     findings = []
 
@@ -49,7 +50,7 @@ def find_overprovisioned_k8s():
     return findings
 
 
-# local test
+# local / docker test
 if __name__ == "__main__":
     result = find_overprovisioned_k8s()
 
