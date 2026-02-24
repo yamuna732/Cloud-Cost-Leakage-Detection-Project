@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+        ROLE_ARN              = credentials('customer-role-arn')
+        SENDER_EMAIL          = credentials('sender-email')
+        SENDER_PASS           = credentials('sender-pass')
+        RECEIVER_EMAIL        = credentials('receiver-email')
+    }
+
+    stages {
+
+        stage('Pull Docker Image') {
+            steps {
+                sh 'docker pull yamuna1909/cloud-cost-scanner:1.0'
+            }
+        }
+
+        stage('Prepare Env File') {
+            steps {
+                sh '''
+                cat > env.list <<EOF
+AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+ROLE_ARN=$ROLE_ARN
+SENDER_EMAIL=$SENDER_EMAIL
+SENDER_PASS=$SENDER_PASS
+RECEIVER_EMAIL=$RECEIVER_EMAIL
+EOF
+                '''
+            }
+        }
+
+        stage('Run Scan') {
+            steps {
+                sh 'docker run --rm --env-file env.list yamuna1909/cloud-cost-scanner:1.0'
+            }
+        }
+    }
+}
